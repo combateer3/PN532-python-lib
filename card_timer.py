@@ -1,19 +1,15 @@
 from multiprocessing import Process, Event, Value
 import time
 
-# global that stores how long the card should be removed for
-remove_time = 2 # default of 2 seconds
-
-
 # this function blocks until the card has been removed
 # for some number of seconds
-def card_removal_wait(card_read_func, sec=2):
+def card_removal_wait(card_read_func, sec=1, check_interval=0.1):
     card_removed = Event()
     # 2 processes are spawned
     # one keeps a timer
     # other resets the timer when the card is read again
     removed_for = Value('f', 0) # keeps track of how long the card has been removed for
-    lock_timer = Process(target=card_remove_timer, args=(card_removed, removed_for, sec))
+    lock_timer = Process(target=card_remove_timer, args=(card_removed, removed_for, sec, check_interval))
     lock_con = Process(target=check_card_active, args=(card_removed, removed_for, card_read_func))
 
     # start processes
@@ -27,12 +23,12 @@ def card_removal_wait(card_read_func, sec=2):
     lock_con.terminate()
 
 
-def card_remove_timer(card_removed, removed_for, time_limit):
+def card_remove_timer(card_removed, removed_for, time_limit, check_interval):
     while removed_for.value < time_limit:
-        time.sleep(0.5)
+        time.sleep(check_interval)
 
         with removed_for.get_lock():
-            removed_for.value += 0.5
+            removed_for.value += check_interval
 
     # while loop is only passed if the timer went time_limit seconds without resetting
     card_removed.set()
